@@ -20,7 +20,7 @@
   height: 300px;
   width: 800px;
   padding: 20px;
-  margin-left: 140px;
+  margin: 0 auto;
 }
 
 .legend {
