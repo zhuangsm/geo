@@ -37,7 +37,9 @@
 
 
 #tooltip {
-  position: absolute;
+  position: absolute;  
+  z-index: 9999;
+  right: 0px;
   width: 150px;
   height: auto;
   padding: 10px;
