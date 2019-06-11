@@ -57,16 +57,6 @@
     // var parseDate = d3.timeParse("%Y-%m-%d");// 2017-10-25T07:54:08.734Z
 
     var tooltip = d3.select("#tooltip")
-
-    var svg = d3
-      .select("body")
-      .append("svg")
-      .attr("width", width + margin.left + margin.right)
-      .attr("height", height + margin.top + margin.bottom);
-
-    var focus = svg.append("g")
-      .attr("class", "focus")
-      .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
     // 分位数比例尺
     var scaleQuantRad = d3.scaleQuantile()
       .domain([0, 3, 11, 101, 316000])
