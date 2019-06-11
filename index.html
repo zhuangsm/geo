@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>A3-earthquakes2017</title>
+  <script type="text/javascript" src="src/compontents/d3/d3.js"></script>
+  <link rel="stylesheet" href="src/compontents/leaflet/leaflet.css" />
+  <link rel="stylesheet" href="./src/style/index.css" />
+  <script src="http://cdn.leafletjs.com/leaflet-0.7/leaflet.js"></script>
+</head>
+<style>
+
+</style>
+
+<body>
+  <h1 class="graph-title">A3-earthquakes2017</h1>
+  <div id="mapid"></div>
+  <div id="tooltip" class="hidden">
+    <p><strong>地震信息：</strong></p>
+    <p><span id="date">100</span></p>
+    <p><span id="magnitude">100</span></p>
+    <p><span id="depth">100</span></p>
+    <p><span id="place">100</span></p>
+  </div>
+  <div class="legend"></div>
+
+  <script type="text/javascript">
+    // 初始化地图
+    var mapw = d3.select("#mapid").style("width");
+    var maph = d3.select("#mapid").style("height");
+
+    var tooltipw = d3.select("#tooltip").style("width");
+
+    var mymap = L.map('mapid', {
+      center: [30.0, 100.0],
+      minZoom: 1,
+      zoom: 3
+    });
+    // 用于在地图上加载和显示切片图层
+    L.tileLayer('http://{s}.tile.stamen.com/toner/{z}/{x}/{y}.png', {
+      attribution: 'D3',
+      maxZoom: 17
+    }).addTo(mymap);
+    var svg_map = d3.select(mymap.getPanes().overlayPane).append("svg");
+    var g = svg_map.append("g").attr("class", "leaflet-zoom-hide");
+
+    var margin = {
+        top: 20,
+        right: 20,
+        bottom: 110,
+        left: 40
+      },
+      width = 900 - margin.left - margin.right + 100,
+      height = 400 - margin.top - margin.bottom + 100;
+
+    // var parseDate = d3.timeParse("%Y-%m-%d");// 2017-10-25T07:54:08.734Z
+
+    var tooltip = d3.select("#tooltip")
+
+    var svg = d3
+      .select("body")
+      .append("svg")
+      .attr("width", width + margin.left + margin.right)
+      .attr("height", height + margin.top + margin.bottom);
+
+    var focus = svg.append("g")
+      .attr("class", "focus")
+      .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+    // 分位数比例尺
+    var scaleQuantRad = d3.scaleQuantile()
+      .domain([0, 3, 11, 101, 316000])
+      .range([3, 4, 5, 6]);
+    // 震级颜色
+    var scaleQuantColor = d3.scaleQuantile()
+      .domain([0, 3, 11, 101, 316000])
+      .range(["#fdbe85", "#fd8d3c", "#e6550d", "#a63603"]);
+
+    // 左下角颜色图示
+    // d3.select(".legend")
+    //   .style('left', "170px")
+    //   .style('top', '300px')
+    d3.json("src/data/A3-earthquakes2017.geojson", function (data) {
+      function projectPoint(x, y) {
+        var point = mymap.latLngToLayerPoint(new L.LatLng(y, x));
+        this.stream.point(point.x, point.y);
+      }
+      var transform = d3.geoTransform({
+        point: projectPoint
+      });
+      var d3path = d3.geoPath().projection(transform);
+      // 从geojson中获取数据渲染
+      function applyLatLngToLayer(d) {
+        var y = d.geometry.coordinates[1]
+        var x = d.geometry.coordinates[0]
+        return mymap.latLngToLayerPoint(new L.LatLng(y, x))
+      }
+      // 画圆圈
+      var feature = g.selectAll("circle")
+        .data(data.features)
+        .enter().append("circle")
+        .attr('class', "mapcircle")
+        .attr("r", function (d) {
+          if (d.properties.depth === null) {
+            return 3
+          } else {
+            return scaleQuantRad(d.properties.depth);
+          }
+        })
+        .attr('fill', function (d) {
+          if (d.properties.depth === null) {
+            return "#867E7E"
+          } else {
+            return scaleQuantColor(d.properties.depth);
+          }
+        })
+        .attr('opacity', 0.4)
+        .on("mouseover", function (d) {
+          d3.select(this)
+            .attr('r', 15)
+          // 浮层上的提示相关字段
+          tooltip
+            .style("left", parseInt(mapw) - parseInt(tooltipw) + 160 + "px")
+            .style("top", 55 + "px")
+            .select("#magnitude")
+            .text("震级： " + d.properties.mag)
+
+          tooltip
+            .select("#date")
+            .text("时间: " + d.properties.time) // 格式化时间
+
+          if (d.properties.depth == null) {
+            tooltip
+              .select("#depth")
+              .text("深度: No entry")
+          } else {
+            tooltip
+              .select("#depth")
+              .text("深度: " + d.properties.depth + "km")
+          }
+
+          if (d.properties.place == null) {
+            tooltip
+              .select("#place")
+              .text("地点: No entry")
+          } else {
+            tooltip
+              .select("#place")
+              .text("地点: " + d.properties.place)
+          }
+          // 提示
+          d3.select("#tooltip").classed("hidden", false);
+        })
+        .on("mouseout", function () {
+          d3.select(this)
+            .transition()
+            .duration(500)
+            .attr("r", function (d) {
+              if (d.properties.depth == null) {
+                return 3
+              } else {
+                return scaleQuantRad(d.properties.depth);
+              }
+            })
+          // 隐藏tooltip
+          d3.select("#tooltip").classed("hidden", true);
+        });
+
+      mymap.on("viewreset", reset);
+      reset();
+
+      function reset() {
+        var bounds = d3path.bounds(data)
+        topLeft = [bounds[0][0] + 10, bounds[0][1] - 10]
+        bottomRight = [bounds[1][0] + 10, bounds[1][1] + 10];
+        // 设置大小和svg容器
+        svg_map
+          .attr("width", bottomRight[0] - topLeft[0])
+          .attr("height", bottomRight[1] - topLeft[1])
+          .style("left", topLeft[0] + "px")
+          .style("top", topLeft[1] + "px");
+        g.attr("transform", "translate(" + (-topLeft[0]) + "," + (-topLeft[1]) + ")");
+        feature.attr("transform",
+          function (d) {
+            return "translate(" +
+              applyLatLngToLayer(d).x + "," +
+              applyLatLngToLayer(d).y + ")";
+          });
+      }
+    });
+  </script>
+</body>
+</html>
